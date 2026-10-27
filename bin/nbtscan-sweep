@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# nbtscan-sweep — NetBIOS name-based host discovery using nbtscan
+# Discovers Windows/SMB hosts via UDP port 137. Works through NAT.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-discover.sh
+source "${SCRIPT_DIR}/lib-discover.sh"
+
+parse_args "$@"
+resolve_targets
+
+# nbtscan -t is the response timeout in milliseconds
+timeout=1000
+
+# nbtscan has no pps knob; -b throttles in bits/sec. NBSTAT query is 50 bytes.
+bandwidth=()
+if [[ -n "$RATE" ]]; then
+    bandwidth=(-b "$(( RATE * 50 * 8 ))")
+fi
+
+echo "nbtscan-sweep: scanning ${#TARGETS[@]} target range(s)" >&2
+
+{
+    for cidr in "${TARGETS[@]}"; do
+        echo "  scanning ${cidr}" >&2
+        nbtscan -q -t "$timeout" "${bandwidth[@]}" "$cidr" 2>/dev/null \
+            | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $1}' || true
+    done
+} | output_results

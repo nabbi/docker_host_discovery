@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# arp-scan-sweep — L2 ARP host discovery using arp-scan
+# Finds all hosts on local subnets via ARP. Cannot be firewalled at L3.
+# Requires --net=host and --privileged (raw sockets + host L2 access).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-discover.sh
+source "${SCRIPT_DIR}/lib-discover.sh"
+
+parse_args "$@"
+resolve_targets
+
+# Default rate: 1000 pps → interval 1ms
+interval=1
+if [[ -n "$RATE" ]]; then
+    if [[ "$RATE" -gt 0 ]]; then
+        interval=$(( 1000 / RATE ))
+        [[ "$interval" -lt 1 ]] && interval=1
+    fi
+fi
+
+echo "arp-scan-sweep: scanning ${#TARGETS[@]} target range(s)" >&2
+
+{
+    for cidr in "${TARGETS[@]}"; do
+        echo "  scanning ${cidr}" >&2
+        arp-scan -q -r 1 -t 200 -i "$interval" "$cidr" 2>/dev/null \
+            | awk -F'\t' '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $1}' || true
+    done
+} | output_results

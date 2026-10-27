@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# zmap-sweep — high-speed host discovery using zmap
+# Raw-socket scanning at line rate. Requires root/CAP_NET_RAW.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-discover.sh
+source "${SCRIPT_DIR}/lib-discover.sh"
+
+parse_args "$@"
+resolve_targets
+
+# Default rate: 100000 pps
+rate="${RATE:-100000}"
+
+# zmap needs real files (no process substitution — it seeks).
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+printf '%s\n' "${TARGETS[@]}" > "$tmpdir/allowlist"
+# Empty blocklist overrides /etc/zmap/blocklist.conf which blocks RFC1918
+touch "$tmpdir/blocklist"
+
+echo "zmap-sweep: scanning ${#TARGETS[@]} target range(s) at ${rate} pps" >&2
+
+{
+    zmap \
+        -M icmp_echoscan \
+        -r "$rate" \
+        -c 4 \
+        -q \
+        -X \
+        -w "$tmpdir/allowlist" \
+        -b "$tmpdir/blocklist" \
+        2>/dev/null
+} | output_results
