@@ -46,6 +46,7 @@ With no targets, they scan the full RFC1918 space. Results are one IP per line o
 - [Tools](docs/tools.md) — per-tool probes, tuning, and limitations
 - [Usage](docs/usage.md) — CLI options, target handling, saving results
 - [Performance](docs/performance.md) — comparison, worst-case runtimes, enterprise recommendation
+- [Bare host](docs/bare-host.md) — run without Docker; full RFC1918 TL;DR
 - [Networking](docs/networking.md) — why NAT bridge is the default, and when to use `--net=host`
 - [Architecture](docs/architecture.md) — execution flow and shared library diagrams
 
