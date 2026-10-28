@@ -47,6 +47,7 @@ With no targets, they scan the full RFC1918 space. Results are one IP per line o
 - [Usage](docs/usage.md) — CLI options, target handling, saving results
 - [Performance](docs/performance.md) — comparison, worst-case runtimes, enterprise recommendation
 - [Bare host](docs/bare-host.md) — run without Docker; full RFC1918 TL;DR
+- [Windows](docs/windows.md) — Docker Desktop, WSL2, or native nmap/masscan commands
 - [Networking](docs/networking.md) — why NAT bridge is the default, and when to use `--net=host`
 - [Architecture](docs/architecture.md) — execution flow and shared library diagrams
 

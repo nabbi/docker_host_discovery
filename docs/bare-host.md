@@ -20,6 +20,8 @@ sort -u -t. -k1,1n -k2,2n -k3,3n -k4,4n alive.txt -o alive.txt
 
 > **Only scan networks you own or are authorized to test.**
 
+On Windows, see [Windows](windows.md) instead.
+
 ## Install
 
 The scripts run straight from `bin/` — no install step. They need bash and whichever scanners you use:
