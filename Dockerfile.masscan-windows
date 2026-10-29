@@ -1,0 +1,31 @@
+# Cross-compiles masscan.exe for 64-bit Windows with MinGW-w64.
+#
+#   docker build -f Dockerfile.masscan-windows -o out .
+#
+# writes out/masscan.exe. Needs BuildKit (the default since Docker 23).
+
+# Pinned to a master commit: the 1.3.2 release forces 32-bit -march flags under
+# MinGW and fails to build for x86-64.
+ARG MASSCAN_COMMIT=8e6b3b0c07a81e8ea61d557c06134a21a6881614
+
+FROM debian:bookworm-slim AS build
+ARG MASSCAN_COMMIT
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        gcc-mingw-w64-x86-64 make git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+RUN git init -q \
+ && git fetch -q --depth 1 https://github.com/robertdavidgraham/masscan "${MASSCAN_COMMIT}" \
+ && git checkout -q FETCH_HEAD
+
+# Source includes <WinSock2.h>, <Windows.h>, etc.; MinGW's headers are
+# lowercase and Linux filesystems are case-sensitive.
+RUN sed -i -E 's/#include\s*<([^>]*[A-Z][^>]*)>/#include <\L\1>/' src/*.c src/*.h \
+ && make -j"$(nproc)" CC=x86_64-w64-mingw32-gcc LIBS="-lws2_32 -liphlpapi" \
+ && x86_64-w64-mingw32-strip bin/masscan.exe
+
+FROM scratch
+COPY --from=build /src/bin/masscan.exe /

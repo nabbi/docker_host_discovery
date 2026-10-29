@@ -36,7 +36,7 @@ Prefer a wired adapter. Wi-Fi bridging has to rewrite the VM's MAC to the host's
 
 [Git for Windows](https://gitforwindows.org/) ships bash and GNU coreutils, which is enough for the `bin/` scripts to drive the Windows builds of nmap and masscan.
 
-1. Install nmap and masscan (see [availability](#native-tool-availability)) and make sure `nmap.exe` and `masscan.exe` are on `PATH`.
+1. Install nmap and [build masscan](#building-masscanexe), and make sure `nmap.exe` and `masscan.exe` are on `PATH`.
 2. Open Git Bash **as Administrator**.
 3. Run the scripts from the repo:
 
@@ -56,13 +56,31 @@ Limitations:
 | Tool | Native Windows build | Get it |
 |------|----------------------|--------|
 | nmap | Yes, official | [nmap.org](https://nmap.org/download.html#windows) or `winget install Insecure.Nmap` — installer bundles Npcap |
-| masscan | Yes, but no official binary | Build from [source](https://github.com/robertdavidgraham/masscan) with Visual Studio or MinGW. Needs [Npcap](https://npcap.com/) installed in WinPcap API-compatible mode. Tops out around 300K pps on Windows. |
+| masscan | Yes, but no official binary | [Cross-compile it](#building-masscanexe) on Linux with the bundled Dockerfile. Needs [Npcap](https://npcap.com/) installed in WinPcap API-compatible mode. Tops out around 300K pps on Windows. |
 | nbtscan | Yes, different program | Steve Friedl's [unixwiz nbtscan](http://www.unixwiz.net/tools/nbtscan.html) (`nbtscan.exe`). Not the same CLI as the Linux nbtscan. |
 | fping | No | Cygwin builds only. Use nmap `-PE` instead. |
 | zmap | No | Linux/BSD/macOS only. Use masscan instead. |
 | arp-scan | No | Use `nmap -sn -PR` on local subnets. |
 
 Run PowerShell **as Administrator** for nmap and masscan — raw packet probes and ARP need it.
+
+## Building masscan.exe
+
+masscan has no official Windows binary. `Dockerfile.masscan-windows` cross-compiles one on any Linux (or Docker Desktop) machine with MinGW-w64:
+
+```bash
+docker build -f Dockerfile.masscan-windows -o out .
+```
+
+This writes a 64-bit `out/masscan.exe`; copy it to the Windows machine. The build pins a masscan commit (`MASSCAN_COMMIT` build arg) because the 1.3.2 release doesn't build for x86-64 under MinGW. It also lowercases the source's `<WinSock2.h>`-style includes, because MinGW's headers are lowercase and Linux filesystems are case-sensitive.
+
+To run it on Windows:
+
+1. Install [Npcap](https://npcap.com/) and tick **Install Npcap in WinPcap API-compatible Mode**. masscan loads `wpcap.dll` at startup and can't open an adapter without it. The nmap installer bundles Npcap, but check that the option was ticked.
+2. Run from an elevated prompt (**as Administrator**).
+3. If masscan picks the wrong interface, list them with `masscan --iflist` and pass `--adapter <name>`.
+
+The binary only links system DLLs (`kernel32`, `ws2_32`, `iphlpapi`, `msvcrt`), so you don't need a Visual C++ redistributable. Windows Defender and other antivirus tools often flag masscan as a "HackTool"; add an exclusion if it gets quarantined.
 
 ## Native Commands
 
