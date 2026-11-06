@@ -23,16 +23,22 @@ printf '%s\n' "${TARGETS[@]}" > "$tmpdir/allowlist"
 # Empty blocklist overrides /etc/zmap/blocklist.conf which blocks RFC1918
 touch "$tmpdir/blocklist"
 
-echo "zmap-sweep: scanning ${#TARGETS[@]} target range(s) at ${rate} pps" >&2
+# zmap sends everything out one interface. Name it explicitly: some zmap
+# builds segfault in interface auto-detection on hosts with many interfaces
+# (e.g. lots of Docker bridges).
+iface_opt=()
+iface="$(route_iface "${TARGETS[0]}")"
+[[ -n "$iface" ]] && iface_opt=(-i "$iface")
 
-{
-    zmap \
-        -M icmp_echoscan \
-        -r "$rate" \
-        -c 4 \
-        -q \
-        -X \
-        -w "$tmpdir/allowlist" \
-        -b "$tmpdir/blocklist" \
-        2>/dev/null
-} | output_results
+echo "zmap-sweep: scanning ${#TARGETS[@]} target range(s) at ${rate} pps${iface:+ via ${iface}}" >&2
+
+run_logged zmap \
+    -M icmp_echoscan \
+    -r "$rate" \
+    -c 4 \
+    -q \
+    -X \
+    "${iface_opt[@]}" \
+    -w "$tmpdir/allowlist" \
+    -b "$tmpdir/blocklist" \
+| output_results

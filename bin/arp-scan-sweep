@@ -26,8 +26,14 @@ echo "arp-scan-sweep: scanning ${#TARGETS[@]} target range(s)" >&2
 
 {
     for cidr in "${TARGETS[@]}"; do
-        echo "  scanning ${cidr}" >&2
-        arp-scan -q -r 1 -t 200 -i "$interval" "$cidr" 2>/dev/null \
-            | awk -F'\t' '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $1}' || true
+        # arp-scan defaults to the first interface it finds, which is wrong for
+        # any subnet that isn't on it (Docker bridges, second NICs). Use the
+        # interface the kernel routes this subnet through.
+        iface_opt=()
+        iface="$(route_iface "$cidr")"
+        [[ -n "$iface" ]] && iface_opt=(-I "$iface")
+        echo "  scanning ${cidr}${iface:+ on ${iface}}" >&2
+        run_logged arp-scan -q -r 1 -t 200 -i "$interval" "${iface_opt[@]}" "$cidr" \
+            | awk -F'\t' '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $1}'
     done
 } | output_results

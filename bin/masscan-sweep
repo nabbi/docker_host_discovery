@@ -15,16 +15,30 @@ resolve_targets
 # Default rate: 10000 pps (conservative for 8 probes/host)
 rate="${RATE:-10000}"
 
+# masscan always reads /etc/masscan/masscan.conf before the command line, and
+# ports/excludes from it are *added* to ours. Some distro packages (Gentoo)
+# ship one that excludes all of RFC1918 and sets ports = 0-65535, which
+# empties or bloats the scan. Refuse rather than bypass what may be a
+# deliberate site-wide blocklist.
+sys_conf=/etc/masscan/masscan.conf
+conf_re='^[[:space:]]*(ports?|range|exclude|excludefile|exclude-file)[[:space:]]*='
+if [[ -f "$sys_conf" ]] && grep -qE "$conf_re" "$sys_conf"; then
+    {
+        echo "Error: ${sys_conf} sets ports or excludes, which masscan merges into every scan:"
+        grep -nE "$conf_re" "$sys_conf" | sed 's/^/    /'
+        echo "Comment those lines out (or move the file aside) and re-run."
+    } >&2
+    exit 1
+fi
+
 echo "masscan-sweep: scanning ${#TARGETS[@]} target range(s) at ${rate} pps" >&2
 
-{
-    masscan \
-        -p80,443,22,8080,8443,3389,445 \
-        --ping \
-        --rate "$rate" \
-        --wait 2 \
-        --open-only \
-        -oL - \
-        "${TARGETS[@]}" 2>/dev/null \
-    | awk '/^open/{print $4}'
-} | output_results
+run_logged masscan \
+    -p80,443,22,8080,8443,3389,445 \
+    --ping \
+    --rate "$rate" \
+    --wait 2 \
+    --open-only \
+    -oL - \
+    "${TARGETS[@]}" \
+| awk '/^open/{print $4}' | output_results

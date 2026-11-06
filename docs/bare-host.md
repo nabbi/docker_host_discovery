@@ -34,6 +34,16 @@ The scripts run straight from `bin/` — no install step. They need bash and whi
 
 `rfc1918.conf` is read from `bin/` next to the scripts, so they also work if you copy `bin/` elsewhere (for example `/usr/local/bin`, as the container does).
 
+### masscan system config
+
+masscan always reads `/etc/masscan/masscan.conf` if it exists, and merges any `ports` and `excludefile` settings in it with the ones the script passes. You can't turn this off from the command line. Gentoo's package installs a config with `ports = 0-65535` and an exclude file that blocks all of RFC1918, so every scan would come back empty. `masscan-sweep` checks for this and stops with an error that lists the offending lines. Comment them out, or move the file aside, before scanning:
+
+```bash
+sudo mv /etc/masscan/masscan.conf /etc/masscan/masscan.conf.disabled
+```
+
+The container image ships no masscan config, so this only affects bare hosts.
+
 ## Why the ARP Pass
 
 On a bare host, zmap and masscan see the same thing as a container with `--net=host`: they send every probe to the default gateway's MAC and never ARP individual hosts. Hosts on your directly-connected subnets are reached through the router, which usually won't hairpin the traffic back, so they go missing. `arp-scan-sweep --local` fills that gap. See [networking](networking.md) for the full explanation.
@@ -45,7 +55,7 @@ On a bare host, zmap and masscan see the same thing as a container with `--net=h
 | Tool | Needs root |
 |------|------------|
 | masscan-sweep, zmap-sweep, arp-scan-sweep | Yes (raw sockets) |
-| nmap-discover | Recommended — some probe types are limited without it |
+| nmap-discover | Recommended — without root nmap can only send TCP connect probes, so the script drops ICMP/UDP/ACK, adds ports 445 and 3389, and warns |
 | fping-sweep, nbtscan-sweep | No (fping may need setuid or `CAP_NET_RAW` depending on distro) |
 
 ## Other Full-Space Options

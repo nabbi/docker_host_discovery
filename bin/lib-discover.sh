@@ -198,6 +198,28 @@ count_addresses() {
     echo $(( 1 << (32 - prefix) ))
 }
 
+# --- Running scanners ----------------------------------------------------
+
+# Run a scanner with its stderr (banners, progress meters) captured. On
+# failure, replay the tail of it so errors such as "not root" or a crash
+# aren't swallowed, and return the scanner's exit code.
+run_logged() {
+    local log rc=0
+    log="$(mktemp)"
+    "$@" 2>"$log" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "Error: $1 exited with status ${rc}:" >&2
+        tr '\r' '\n' < "$log" | grep . | tail -n 20 | sed 's/^/    /' >&2 || true
+    fi
+    rm -f "$log"
+    return "$rc"
+}
+
+# Print the interface the kernel routes a target CIDR through (empty if none).
+route_iface() {
+    ip -4 route get "${1%/*}" 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit }}'
+}
+
 # --- Output helpers ------------------------------------------------------
 
 sort_ips() {

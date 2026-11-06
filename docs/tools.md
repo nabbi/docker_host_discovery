@@ -25,6 +25,8 @@ docker run --rm host-discovery nmap-discover 192.168.0.0/16
 
 **Tuning:** `-n` (skip DNS), `--min-rate 5000`, `--max-retries 1`, `--max-rtt-timeout 200ms`.
 
+**Without root** (bare host, no sudo): nmap refuses UDP probes and can only make TCP connections, so the script falls back to TCP connect probes on 22, 80, 443, 8080, 445 and 3389 and prints a warning.
+
 ## zmap-sweep
 
 Raw-socket line-rate scanning. Requires `--privileged` for raw sockets.
@@ -33,7 +35,7 @@ Raw-socket line-rate scanning. Requires `--privileged` for raw sockets.
 docker run --rm --privileged host-discovery zmap-sweep 10.0.0.0/8
 ```
 
-**Tuning:** 100K pps default, 4s cooldown, IP-layer mode (`-X`). Overrides the default zmap blocklist to allow RFC1918 ranges.
+**Tuning:** 100K pps default, 4s cooldown, IP-layer mode (`-X`). Overrides the default zmap blocklist to allow RFC1918 ranges. Passes `-i` with the interface the first target routes through, because some zmap builds segfault when they auto-detect the interface on hosts with many interfaces.
 
 ## masscan-sweep
 
@@ -59,6 +61,8 @@ docker run --rm --net=host --privileged host-discovery arp-scan-sweep --local
 ```
 
 **Tuning:** 1 retry, 200ms timeout, 1ms interval. Rate flag adjusts interval via `1000/rate`.
+
+Each subnet is scanned on the interface the kernel routes it through (`-I`), so `--local` covers every connected network, Docker bridges included.
 
 **Limitation:** Only discovers hosts on directly-connected L2 subnets. Cannot scan across routers.
 

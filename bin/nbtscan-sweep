@@ -26,7 +26,7 @@ echo "nbtscan-sweep: scanning ${#TARGETS[@]} target range(s)" >&2
 {
     for cidr in "${TARGETS[@]}"; do
         echo "  scanning ${cidr}" >&2
-        nbtscan -q -t "$timeout" "${bandwidth[@]}" "$cidr" 2>/dev/null \
-            | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $1}' || true
+        run_logged nbtscan -q -t "$timeout" "${bandwidth[@]}" "$cidr" \
+            | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $1}'
     done
 } | output_results

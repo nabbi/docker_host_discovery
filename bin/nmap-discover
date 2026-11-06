@@ -15,22 +15,27 @@ resolve_targets
 # Default min-rate: 5000 pps
 min_rate="${RATE:-5000}"
 
+# shellcheck disable=SC2054  # commas are nmap port lists
+probes=(-PE -PP -PS22,80,443,8080 -PA80,443 -PU40125)
+if [[ $EUID -ne 0 ]]; then
+    # Unprivileged nmap can only do TCP connect() probes; it refuses -PU
+    # outright. Add the Windows ports to make up for losing ICMP.
+    echo "Warning: not root; using TCP connect probes only (no ICMP/UDP). Run with sudo for full coverage." >&2
+    # shellcheck disable=SC2054
+    probes=(-PS22,80,443,8080,445,3389)
+fi
+
 echo "nmap-discover: scanning ${#TARGETS[@]} target range(s)" >&2
 
-{
-    nmap \
-        -sn -n \
-        -PE -PP \
-        -PS22,80,443,8080 \
-        -PA80,443 \
-        -PU40125 \
-        -T4 \
-        --min-rate "$min_rate" \
-        --min-hostgroup 256 \
-        --max-retries 1 \
-        --max-rtt-timeout 200ms \
-        --initial-rtt-timeout 100ms \
-        -oG - \
-        "${TARGETS[@]}" 2>/dev/null \
-    | awk '/Status: Up/{print $2}'
-} | output_results
+run_logged nmap \
+    -sn -n \
+    "${probes[@]}" \
+    -T4 \
+    --min-rate "$min_rate" \
+    --min-hostgroup 256 \
+    --max-retries 1 \
+    --max-rtt-timeout 200ms \
+    --initial-rtt-timeout 100ms \
+    -oG - \
+    "${TARGETS[@]}" \
+| awk '/Status: Up/{print $2}' | output_results

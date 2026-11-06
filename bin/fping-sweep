@@ -28,7 +28,9 @@ echo "fping-sweep: scanning ${#TARGETS[@]} target range(s)" >&2
         # Split anything larger than /17 into /17 chunks
         while IFS= read -r chunk; do
             echo "  scanning ${chunk}" >&2
-            fping -a -q -r 0 -t 100 -B 1 -i "$interval" -g "$chunk" 2>/dev/null || true
+            # Exit 1 means "some hosts unreachable", which is normal for a sweep.
+            # With -q, fping's stderr carries only real errors (permissions, bad range).
+            fping -a -q -r 0 -t 100 -B 1 -i "$interval" -g "$chunk" || true
         done < <(split_cidr "$cidr" 17)
     done
 } | output_results
